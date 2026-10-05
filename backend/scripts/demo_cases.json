@@ -1,0 +1,212 @@
+[
+  {
+    "label": "Warfarin + Aspirin bleeding risk",
+    "age": 72,
+    "conditions": ["atrial fibrillation", "osteoarthritis"],
+    "medications": ["warfarin", "aspirin", "lisinopril"],
+    "question": "What are the known bleeding risks associated with taking warfarin and aspirin together?"
+  },
+  {
+    "label": "Metformin + contrast media concern",
+    "age": 58,
+    "conditions": ["type 2 diabetes", "hypertension", "chronic kidney disease stage 2"],
+    "medications": ["metformin", "amlodipine", "atorvastatin"],
+    "question": "Are there any risks associated with metformin in a patient with reduced kidney function?"
+  },
+  {
+    "label": "SSRI + MAO inhibitor interaction",
+    "age": 45,
+    "conditions": ["major depressive disorder", "anxiety"],
+    "medications": ["sertraline", "phenelzine"],
+    "question": "What are the known risks of combining sertraline and phenelzine?"
+  },
+  {
+    "label": "Statin + CYP3A4 inhibitor interaction",
+    "age": 63,
+    "conditions": ["hyperlipidemia", "HIV"],
+    "medications": ["simvastatin", "ritonavir", "tenofovir"],
+    "question": "Are there any interactions between simvastatin and ritonavir that could increase side effect risk?"
+  },
+  {
+    "label": "ACE inhibitor + potassium-sparing diuretic",
+    "age": 68,
+    "conditions": ["heart failure", "hypertension"],
+    "medications": ["lisinopril", "spironolactone", "furosemide"],
+    "question": "What are the risks of combining lisinopril and spironolactone in a heart failure patient?"
+  },
+  {
+    "label": "Fluoroquinolone + QT-prolonging drugs",
+    "age": 54,
+    "conditions": ["community-acquired pneumonia", "depression"],
+    "medications": ["ciprofloxacin", "amitriptyline", "ondansetron"],
+    "question": "Are there any cardiac risks from combining ciprofloxacin with amitriptyline and ondansetron?"
+  },
+  {
+    "label": "NSAIDs + antihypertensives",
+    "age": 65,
+    "conditions": ["osteoarthritis", "hypertension", "chronic kidney disease stage 3"],
+    "medications": ["ibuprofen", "enalapril", "hydrochlorothiazide"],
+    "question": "What are the effects of long-term ibuprofen use on blood pressure medications and kidney function?"
+  },
+  {
+    "label": "Clopidogrel + PPI interaction",
+    "age": 71,
+    "conditions": ["coronary artery disease", "peptic ulcer disease"],
+    "medications": ["clopidogrel", "omeprazole", "aspirin", "atorvastatin"],
+    "question": "Does omeprazole reduce the effectiveness of clopidogrel in cardiovascular patients?"
+  },
+  {
+    "label": "Methotrexate + NSAIDs toxicity",
+    "age": 52,
+    "conditions": ["rheumatoid arthritis"],
+    "medications": ["methotrexate", "naproxen", "folic acid"],
+    "question": "What are the known interactions between methotrexate and naproxen that could increase toxicity?"
+  },
+  {
+    "label": "Digoxin + amiodarone interaction",
+    "age": 78,
+    "conditions": ["atrial fibrillation", "congestive heart failure"],
+    "medications": ["digoxin", "amiodarone", "furosemide", "potassium chloride"],
+    "question": "What is the effect of amiodarone on digoxin levels and toxicity risk?"
+  },
+  {
+    "label": "Lithium + NSAIDs interaction",
+    "age": 38,
+    "conditions": ["bipolar disorder"],
+    "medications": ["lithium carbonate", "ibuprofen", "levothyroxine"],
+    "question": "Can ibuprofen affect lithium levels and increase toxicity risk?"
+  },
+  {
+    "label": "Theophylline + fluoroquinolone interaction",
+    "age": 67,
+    "conditions": ["COPD", "urinary tract infection"],
+    "medications": ["theophylline", "ciprofloxacin", "tiotropium"],
+    "question": "What is the interaction between ciprofloxacin and theophylline in COPD patients?"
+  },
+  {
+    "label": "Warfarin + fluconazole interaction",
+    "age": 60,
+    "conditions": ["atrial fibrillation", "candida infection"],
+    "medications": ["warfarin", "fluconazole", "metoprolol"],
+    "question": "How does fluconazole affect warfarin levels and bleeding risk?"
+  },
+  {
+    "label": "Serotonin syndrome risk with tramadol",
+    "age": 44,
+    "conditions": ["chronic pain", "depression"],
+    "medications": ["tramadol", "sertraline", "trazodone"],
+    "question": "What is the serotonin syndrome risk from combining tramadol, sertraline, and trazodone?"
+  },
+  {
+    "label": "Phenytoin + warfarin complex interaction",
+    "age": 55,
+    "conditions": ["epilepsy", "atrial fibrillation"],
+    "medications": ["phenytoin", "warfarin", "carbamazepine"],
+    "question": "What are the interactions between phenytoin, carbamazepine, and warfarin?"
+  },
+  {
+    "label": "ACE inhibitor + ARB dual blockade",
+    "age": 62,
+    "conditions": ["diabetic nephropathy", "hypertension"],
+    "medications": ["lisinopril", "losartan", "metformin"],
+    "question": "What are the risks of combining lisinopril and losartan for blood pressure in a diabetic patient?"
+  },
+  {
+    "label": "Oral contraceptive + enzyme inducer",
+    "age": 29,
+    "conditions": ["epilepsy"],
+    "medications": ["ethinyl estradiol", "levonorgestrel", "rifampicin"],
+    "question": "Can rifampicin reduce the effectiveness of oral contraceptives?"
+  },
+  {
+    "label": "Tricyclic antidepressant + anticholinergics",
+    "age": 70,
+    "conditions": ["depression", "urge incontinence", "benign prostatic hyperplasia"],
+    "medications": ["amitriptyline", "oxybutynin", "tamsulosin"],
+    "question": "What anticholinergic burden risks exist with amitriptyline and oxybutynin in an elderly patient?"
+  },
+  {
+    "label": "Beta-blocker + calcium channel blocker",
+    "age": 69,
+    "conditions": ["angina", "hypertension"],
+    "medications": ["metoprolol", "verapamil", "aspirin"],
+    "question": "What cardiac conduction risks are associated with combining metoprolol and verapamil?"
+  },
+  {
+    "label": "Immunosuppressant + antifungal interaction",
+    "age": 48,
+    "conditions": ["kidney transplant", "fungal infection"],
+    "medications": ["tacrolimus", "fluconazole", "mycophenolate mofetil"],
+    "question": "How does fluconazole affect tacrolimus levels in transplant patients?"
+  },
+  {
+    "label": "DOAC + antiplatelet combination",
+    "age": 74,
+    "conditions": ["atrial fibrillation", "recent coronary stent"],
+    "medications": ["apixaban", "clopidogrel", "aspirin"],
+    "question": "What bleeding risks are associated with triple antithrombotic therapy?"
+  },
+  {
+    "label": "Allopurinol + azathioprine interaction",
+    "age": 46,
+    "conditions": ["inflammatory bowel disease", "gout"],
+    "medications": ["azathioprine", "allopurinol", "mesalamine"],
+    "question": "What is the interaction between allopurinol and azathioprine and how does it affect toxicity?"
+  },
+  {
+    "label": "Metronidazole + alcohol interaction",
+    "age": 35,
+    "conditions": ["bacterial vaginosis"],
+    "medications": ["metronidazole", "doxycycline"],
+    "question": "What are the side effects and interactions associated with metronidazole use?"
+  },
+  {
+    "label": "Bisphosphonate + calcium supplement timing",
+    "age": 66,
+    "conditions": ["osteoporosis"],
+    "medications": ["alendronate", "calcium carbonate", "vitamin D3", "omeprazole"],
+    "question": "Are there any absorption interactions between alendronate and calcium or omeprazole?"
+  },
+  {
+    "label": "Levodopa + antipsychotic interaction",
+    "age": 73,
+    "conditions": ["Parkinson's disease", "dementia with behavioral symptoms"],
+    "medications": ["levodopa", "carbidopa", "haloperidol", "donepezil"],
+    "question": "Can haloperidol worsen Parkinson's symptoms and interact with levodopa?"
+  },
+  {
+    "label": "Low-risk polypharmacy review",
+    "age": 55,
+    "conditions": ["hypertension", "hypothyroidism"],
+    "medications": ["levothyroxine", "amlodipine", "vitamin B12"],
+    "question": "Are there any known interactions between levothyroxine, amlodipine, and vitamin B12 supplements?"
+  },
+  {
+    "label": "Antibiotic + warfarin",
+    "age": 77,
+    "conditions": ["atrial fibrillation", "pneumonia"],
+    "medications": ["warfarin", "clarithromycin", "metoprolol"],
+    "question": "How does clarithromycin affect warfarin levels and what risks should be monitored?"
+  },
+  {
+    "label": "Insulin + beta-blocker hypoglycemia masking",
+    "age": 61,
+    "conditions": ["type 1 diabetes", "hypertension"],
+    "medications": ["insulin glargine", "metoprolol", "enalapril"],
+    "question": "Can metoprolol mask hypoglycemia symptoms in a patient on insulin?"
+  },
+  {
+    "label": "Valproate + lamotrigine interaction",
+    "age": 32,
+    "conditions": ["epilepsy", "bipolar disorder"],
+    "medications": ["valproate", "lamotrigine", "quetiapine"],
+    "question": "How does valproate affect lamotrigine levels and what monitoring is needed?"
+  },
+  {
+    "label": "Quinolone + antacid absorption interaction",
+    "age": 50,
+    "conditions": ["urinary tract infection", "GERD"],
+    "medications": ["levofloxacin", "aluminum hydroxide", "omeprazole"],
+    "question": "Does aluminum-containing antacid affect the absorption of levofloxacin?"
+  }
+]

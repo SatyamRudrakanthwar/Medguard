@@ -1,0 +1,32 @@
+# Infrastructure-only override for local development.
+#
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#
+# This starts only postgres, qdrant, and redis with host-mapped ports.
+# Run the backend and frontend locally:
+#   cd backend && uvicorn app.main:app --reload
+#   cd frontend && npm run dev
+
+version: "3.9"
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  qdrant:
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Exclude application services in dev mode
+  backend:
+    profiles: ["disabled"]
+
+  frontend:
+    profiles: ["disabled"]

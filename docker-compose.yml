@@ -1,0 +1,114 @@
+version: "3.9"
+
+# ── MedGuard — one-command startup ────────────────────────────────────────────
+#
+#   docker-compose up -d            # start everything
+#   docker-compose logs -f backend  # tail backend logs
+#   docker-compose down -v          # stop and delete volumes
+#
+#   Access: http://localhost
+#   API docs: http://localhost/api/v1/docs
+#
+# Copy .env.example → backend/.env and fill in your API keys before starting.
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: medguard_postgres
+    environment:
+      POSTGRES_DB: medguard
+      POSTGRES_USER: medguard
+      POSTGRES_PASSWORD: medguard_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medguard_net
+
+  # ── Qdrant (Vector DB) ────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: medguard_qdrant
+    ports:
+      - "6333:6333"   # expose for local ingestion scripts
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medguard_net
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: medguard_redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medguard_net
+
+  # ── FastAPI backend ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medguard_backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override localhost URLs to use Docker service names
+      DATABASE_URL: postgresql+asyncpg://medguard:medguard_password@postgres:5432/medguard
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      REDIS_URL: redis://redis:6379/0
+      API_RELOAD: "false"
+      ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - medguard_net
+    restart: unless-stopped
+
+  # ── React frontend + Nginx reverse proxy ─────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: medguard_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - medguard_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+
+networks:
+  medguard_net:
+    name: medguard_network
+    driver: bridge
