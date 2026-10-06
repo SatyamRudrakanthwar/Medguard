@@ -11,6 +11,8 @@ from app.graph.runner import stream_review, get_completed_report
 from app.safety import safety_engine, rate_limiter
 from app.services.event_stream import ReviewEventStream
 from app.agents.provider import set_request_provider, detect_provider
+from app.services.database import AsyncSessionFactory
+from app.services.review_repository import ReviewRepository
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/review", tags=["review"])
@@ -86,6 +88,20 @@ async def create_review(
         "provider": resolved_provider,
         "stream": event_stream,
     }
+
+    # Persist to PostgreSQL (non-blocking — failure doesn't block the review)
+    try:
+        async with AsyncSessionFactory() as db:
+            repo = ReviewRepository(db)
+            await repo.create(review_id, {
+                "age": sanitized.age,
+                "conditions": sanitized.conditions,
+                "medications": sanitized.medications,
+                "question": sanitized.question,
+            })
+            await db.commit()
+    except Exception as exc:
+        logger.warning("DB write failed for review %s: %s", review_id, exc)
 
     background_tasks.add_task(_run_review, review_id)
     return response
@@ -169,7 +185,7 @@ async def _run_review(review_id: str) -> None:
         # Validate LLM output through the safety engine before storing
         clean_findings = safety_engine.validate_findings(report.findings)
 
-        entry["response"] = ReviewResponse(
+        completed_response = ReviewResponse(
             review_id=review_id,
             status=ReviewStatus.completed,
             medications_reviewed=report.medications_reviewed,
@@ -181,10 +197,35 @@ async def _run_review(review_id: str) -> None:
             completed_at=datetime.utcnow(),
             disclaimer=report.disclaimer,
         )
+        entry["response"] = completed_response
         logger.info("Review %s completed: %d findings", review_id, report.total_findings)
+
+        # Persist completed result to PostgreSQL
+        try:
+            async with AsyncSessionFactory() as db:
+                repo = ReviewRepository(db)
+                await repo.complete(review_id, {
+                    "findings": [f.model_dump() for f in clean_findings],
+                    "evidence": report.evidence_summary,
+                    "additional_information": report.additional_information,
+                    "high_severity_count": report.high_severity_count,
+                    "research_retries": getattr(report, "research_retries", 0),
+                })
+                await db.commit()
+        except Exception as exc:
+            logger.warning("DB complete write failed for review %s: %s", review_id, exc)
 
     except Exception as e:
         logger.exception("Review %s failed", review_id)
         entry["response"].status = ReviewStatus.failed
         entry["response"].message = f"Review failed: {str(e)}"
         event_stream.publish(StreamEvent(event="error", message=str(e)))
+
+        # Persist failure to PostgreSQL
+        try:
+            async with AsyncSessionFactory() as db:
+                repo = ReviewRepository(db)
+                await repo.fail(review_id, str(e))
+                await db.commit()
+        except Exception as exc:
+            logger.warning("DB fail write failed for review %s: %s", review_id, exc)

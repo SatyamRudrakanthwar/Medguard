@@ -6,7 +6,7 @@ never run the graph twice for the same review.
 import asyncio
 import logging
 import time
-from typing import AsyncIterator, Optional
+from typing import Any, AsyncIterator, Optional
 
 from app.graph.graph import compiled_graph
 from app.models.patient import Medication, PatientContext
@@ -18,6 +18,64 @@ from app.agents.provider import set_request_provider
 from app.observability import tracer, set_trace_context
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize(obj: Any, depth: int = 0) -> Any:
+    """Recursively convert Pydantic models / dataclasses to JSON-safe dicts."""
+    if depth > 4:
+        return str(obj)[:200]
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if hasattr(obj, "model_dump"):          # Pydantic v2
+        return _serialize(obj.model_dump(), depth + 1)
+    if hasattr(obj, "dict"):                # Pydantic v1
+        return _serialize(obj.dict(), depth + 1)
+    if isinstance(obj, dict):
+        return {k: _serialize(v, depth + 1) for k, v in list(obj.items())[:30]}
+    if isinstance(obj, (list, tuple)):
+        items = [_serialize(i, depth + 1) for i in obj[:20]]
+        return items
+    return str(obj)[:300]
+
+
+def _summarise_output(node_name: str, node_output: dict) -> dict:
+    """Return a Langfuse-friendly summary of what a node produced."""
+    out: dict[str, Any] = {}
+
+    # Keys that are meaningful per node — always include counts/summaries
+    count_keys = {
+        "drug_information": lambda v: f"{len(v)} drugs fetched",
+        "interactions": lambda v: f"{len(v)} interactions",
+        "evidence": lambda v: f"{len(v)} evidence items",
+        "findings": lambda v: f"{len(v)} findings",
+        "validation_results": lambda v: f"{len(v)} validations",
+        "completed_steps": lambda v: v,
+        "retry_count": lambda v: v,
+        "blocked": lambda v: v,
+        "block_reason": lambda v: v,
+        "evidence_sufficient": lambda v: v,
+        "errors": lambda v: v,
+    }
+
+    detail_keys = {
+        "investigation_plan",
+        "medications",
+        "patient_context",
+        "user_question",
+        "final_report",
+    }
+
+    for key, value in node_output.items():
+        if value is None:
+            continue
+        if key in count_keys:
+            out[key] = count_keys[key](value) if isinstance(value, list) else value
+        elif key in detail_keys:
+            out[key] = _serialize(value)
+        # skip large blobs we didn't list above
+
+    return out
+
 
 NODE_LABELS: dict[str, str] = {
     "validate_input":        "Validating request...",
@@ -122,14 +180,20 @@ async def stream_review(
 
     initial_state = build_initial_state(review_id, age, conditions, medications, question)
     final_retry_count = 0
+    # track when each node's output first arrives to approximate duration
+    node_start_times: dict[str, float] = {}
 
     try:
         async for chunk in compiled_graph.astream(initial_state, stream_mode="updates"):
+            chunk_arrival = time.perf_counter()
             for node_name, node_output in chunk.items():
                 if node_name in ("__end__", "__start__"):
                     continue
 
-                node_start = time.perf_counter()
+                # Approximate duration: time since the previous node finished
+                t_start = node_start_times.get(node_name, chunk_arrival)
+                duration_ms = (chunk_arrival - t_start) * 1000
+                node_start_times[node_name] = chunk_arrival
 
                 # Capture the final report as soon as it appears
                 if "final_report" in node_output and node_output["final_report"]:
@@ -146,12 +210,11 @@ async def stream_review(
                 if retry is not None:
                     data["retry_count"] = retry
 
-                # Record the node span in Langfuse
-                duration_ms = (time.perf_counter() - node_start) * 1000
+                # Record the node span in Langfuse with real I/O data
                 review_trace.node_span(
                     node_name=node_name,
-                    input_data={"node": node_name},
-                    output_data={"completed_steps": completed, "retry_count": retry},
+                    input_data={"node": node_name, "step": label},
+                    output_data=_summarise_output(node_name, node_output),
                     duration_ms=duration_ms,
                 )
 

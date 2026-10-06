@@ -1,5 +1,5 @@
 """
-MedGuard Observability — Langfuse tracing with graceful no-op fallback.
+MedGuard Observability — Langfuse 4.x tracing with graceful no-op fallback.
 
 When LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY are set in .env, every review
 gets a Langfuse trace with spans for each graph node, generations for each
@@ -9,7 +9,6 @@ When keys are absent or Langfuse is unreachable, every method silently
 no-ops so the rest of the application is never affected.
 """
 import logging
-import time
 import contextvars
 from typing import Any, Optional
 
@@ -39,15 +38,21 @@ class _NoopSpan:
     def end(self, **kwargs) -> None:
         pass
 
+    def update(self, **kwargs) -> None:
+        pass
+
 
 class _NoopTrace:
-    def span(self, *args, **kwargs) -> _NoopSpan:
+    def start_observation(self, *args, **kwargs) -> "_NoopSpan":
         return _NoopSpan()
 
-    def generation(self, *args, **kwargs) -> _NoopSpan:
-        return _NoopSpan()
+    def end(self, **kwargs) -> None:
+        pass
 
     def update(self, **kwargs) -> None:
+        pass
+
+    def set_trace_io(self, **kwargs) -> None:
         pass
 
 
@@ -55,22 +60,26 @@ class _NoopTrace:
 
 class ReviewTrace:
     """
-    Wraps a Langfuse trace for a single medication review.
-    All methods are safe to call even if Langfuse is unavailable.
+    Wraps a Langfuse 4.x root observation (trace) for a single medication review.
+    All methods are safe to call even when Langfuse is unavailable.
     """
 
-    def __init__(self, trace: Any, review_id: str):
-        self._trace = trace
+    def __init__(self, root_span: Any, review_id: str, langfuse_client: Any = None, trace_context: Any = None):
+        self._root = root_span
         self._review_id = review_id
+        self._lf = langfuse_client      # used to flush immediately after finish
+        self._trace_context = trace_context
 
     def node_span(self, node_name: str, input_data: dict, output_data: dict, duration_ms: float) -> None:
         try:
-            span = self._trace.span(
+            span = self._root.start_observation(
                 name=f"node:{node_name}",
+                as_type="span",
                 input=input_data,
                 metadata={"node": node_name, "duration_ms": round(duration_ms)},
             )
-            span.end(output=output_data)
+            span.update(output=output_data)
+            span.end()
         except Exception:
             pass
 
@@ -85,57 +94,49 @@ class ReviewTrace:
         duration_ms: float,
     ) -> None:
         try:
-            from langfuse.model import Usage  # type: ignore[import]
-            gen = self._trace.generation(
+            gen = self._root.start_observation(
                 name=f"llm:{agent_name}",
+                as_type="generation",
                 model=model,
-                model_parameters={"max_tokens": output_tokens},
                 input=prompt,
-            )
-            gen.end(
-                output=output,
-                usage=Usage(input=input_tokens, output=output_tokens),
+                usage_details={"input": input_tokens, "output": output_tokens},
                 metadata={"duration_ms": round(duration_ms)},
             )
-        except ImportError:
-            # langfuse.model.Usage may not exist in all versions — use dict
-            try:
-                gen = self._trace.generation(
-                    name=f"llm:{agent_name}",
-                    model=model,
-                    input=prompt,
-                )
-                gen.end(
-                    output=output,
-                    usage={"input": input_tokens, "output": output_tokens},
-                    metadata={"duration_ms": round(duration_ms)},
-                )
-            except Exception:
-                pass
+            gen.update(output=output)
+            gen.end()
         except Exception:
             pass
 
     def tool_span(self, tool_name: str, input_data: dict, output_data: Any, duration_ms: float) -> None:
         try:
-            span = self._trace.span(
+            span = self._root.start_observation(
                 name=f"tool:{tool_name}",
+                as_type="tool",
                 input=input_data,
                 metadata={"tool": tool_name, "duration_ms": round(duration_ms)},
             )
-            span.end(output=str(output_data)[:500])
+            span.update(output=str(output_data)[:500])
+            span.end()
         except Exception:
             pass
 
     def finish(self, status: str, total_findings: int = 0, retries: int = 0) -> None:
         try:
-            self._trace.update(
-                output={
-                    "status": status,
-                    "total_findings": total_findings,
-                    "retries": retries,
-                },
-                metadata={"status": status},
-            )
+            result = {
+                "status": status,
+                "total_findings": total_findings,
+                "retries": retries,
+            }
+            # update sets span-level output; set_trace_io sets trace-level output (both visible in UI)
+            self._root.update(output=result)
+            self._root.set_trace_io(output=result)
+            self._root.end()
+        except Exception:
+            pass
+        # Flush immediately so spans appear in Langfuse without waiting for app shutdown
+        try:
+            if self._lf:
+                self._lf.flush()
         except Exception:
             pass
         _active_traces.pop(self._review_id, None)
@@ -170,6 +171,7 @@ class MedGuardTracer:
             )
             self._enabled = True
             logger.info("Langfuse observability enabled (host: %s)", s.langfuse_host)
+            print(f"Langfuse observability enabled (host: {s.langfuse_host})")
         except ImportError:
             logger.warning("langfuse package not installed — observability disabled")
         except Exception as exc:
@@ -184,28 +186,40 @@ class MedGuardTracer:
     ) -> ReviewTrace:
         """Create a Langfuse trace for one review and register it in _active_traces."""
         if not self._enabled or not self._langfuse:
-            noop = ReviewTrace(_NoopTrace(), review_id)
+            noop = ReviewTrace(_NoopTrace(), review_id, langfuse_client=None)
             _active_traces[review_id] = noop
             return noop
 
         try:
-            trace = self._langfuse.trace(
+            from langfuse.types import TraceContext  # type: ignore[import]
+
+            # Langfuse 4.x: create a deterministic trace_id and root span
+            trace_id = self._langfuse.create_trace_id(seed=review_id)
+            trace_ctx = TraceContext(trace_id=trace_id, observation_id=None)
+
+            root_span = self._langfuse.start_observation(
+                trace_context=trace_ctx,
                 name="medication_review",
-                id=review_id,
-                metadata={
+                as_type="span",
+                input={
                     "medications": medications,
                     "patient_age": age,
                     "conditions": conditions,
+                },
+                metadata={
+                    "review_id": review_id,
                     "medication_count": len(medications),
                 },
-                tags=["medguard", "review"],
             )
-            ctx = ReviewTrace(trace, review_id)
+
+            ctx = ReviewTrace(root_span, review_id, langfuse_client=self._langfuse, trace_context=trace_ctx)
             _active_traces[review_id] = ctx
+            logger.info("Langfuse trace started for review: %s (trace_id: %s)", review_id, trace_id)
             return ctx
+
         except Exception as exc:
             logger.warning("Failed to create Langfuse trace: %s", exc)
-            noop = ReviewTrace(_NoopTrace(), review_id)
+            noop = ReviewTrace(_NoopTrace(), review_id, langfuse_client=None)
             _active_traces[review_id] = noop
             return noop
 

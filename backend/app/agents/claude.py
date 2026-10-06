@@ -8,7 +8,7 @@ import logging
 import uuid
 from itertools import combinations
 
-from app.agents.anthropic_client import get_client, get_settings
+from app.agents.anthropic_client import get_client, get_settings, get_api_key
 from app.models.patient import Medication, PatientContext
 from app.models.findings import (
     DrugInformation, Interaction, EvidenceSource, ValidationResult,
